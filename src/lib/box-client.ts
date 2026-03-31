@@ -117,7 +117,7 @@ export class BoxClient {
    * Required by Box metadata instance update API.
    */
   async jsonPatch<T = unknown>(path: string, operations: unknown): Promise<T> {
-    return this.request<T>("PUT", path, operations, undefined, {
+    return this.request<T>("PATCH", path, operations, undefined, {
       "Content-Type": "application/json-patch+json",
     });
   }
