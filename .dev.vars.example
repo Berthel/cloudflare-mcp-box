@@ -1,0 +1,15 @@
+# Secrets for local development (wrangler dev reads .dev.vars automatically)
+# Copy to .dev.vars and fill in real values
+#
+# IMPORTANT: .dev.vars must be in .gitignore — never commit secrets
+
+# --- Box OAuth credentials (from Box Developer Console) ---
+BOX_CLIENT_ID=your-box-client-id
+BOX_CLIENT_SECRET=your-box-client-secret
+
+# --- Cookie encryption key (generate with: openssl rand -hex 32) ---
+COOKIE_ENCRYPTION_KEY=generate-with-openssl-rand-hex-32
+
+# --- Email restrictions (optional) ---
+# ALLOWED_EMAIL_DOMAIN=example.com
+# ALLOWED_EMAILS=user@gmail.com,another@external.com

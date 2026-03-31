@@ -1,0 +1,54 @@
+---
+description: Box MCP Server project overview and conventions
+globs: "**/*"
+alwaysApply: true
+---
+
+# Box MCP Server (cloudflare-box-mcp)
+
+Remote MCP server on Cloudflare Workers that connects Claude Cowork to Box via OAuth 2.0.
+
+## Architecture
+
+- **Runtime**: Cloudflare Workers with Durable Objects (EU jurisdiction)
+- **Auth**: OAuth 2.0 authorization code flow with Box as upstream IdP
+- **API**: Direct Box REST API calls via lightweight `BoxClient` (no SDK — `box_sdk_gen` is Python-only)
+- **Transport**: Streamable HTTP via `OAuthProvider` + `McpAgent`
+
+## File structure
+
+```
+src/
+  index.ts                 # BoxMcpAgent (DO class) + OAuthProvider (default export)
+  oauth-handler.ts         # Hono app: /authorize, /callback against Box OAuth
+  workers-oauth-utils.ts   # Generic CSRF, state management, consent dialog
+  env.d.ts                 # Env type declarations (secrets, KV, DO bindings)
+  lib/
+    box-client.ts          # Box REST API client with auto token refresh
+    types.ts               # Shared Box types and constants
+  tools/                   # One file per tool group, each exports registerXxxTools()
+    meta.ts, search.ts, ai.ts, docgen.ts, files.ts, file-transfer.ts,
+    folders.ts, metadata.ts, users.ts, groups.ts, collaborations.ts,
+    shared-links.ts, web-links.ts, tasks.ts
+```
+
+## Conventions
+
+- Tool names: `box_{action}_{resource}` in snake_case
+- Every Zod parameter must have `.describe()` — the LLM uses descriptions to fill arguments
+- Tools return `{ content: [{ type: "text", text: ... }] }` with JSON.stringify for structured data
+- Error messages must be actionable (help the LLM retry or inform the user)
+- `registerXxxTools(server, client)` pattern — one function per tool group
+- Box API client handles 401 retry with token refresh automatically
+
+## Reference docs
+
+- `docs/cloudflare-mcp-reference.md` — CF Workers MCP architecture including OAuth
+- `docs/mcp-best-practices.md` — MCP tool design best practices
+- `docs/typescript-mcp-guide.md` — TypeScript MCP patterns and examples
+
+## Secrets (never hardcode)
+
+- `BOX_CLIENT_ID`, `BOX_CLIENT_SECRET` — Box Developer Console OAuth app
+- `COOKIE_ENCRYPTION_KEY` — `openssl rand -hex 32`
+- `ALLOWED_EMAIL_DOMAIN`, `ALLOWED_EMAILS` — optional access restrictions
