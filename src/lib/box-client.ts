@@ -84,12 +84,15 @@ export class BoxClient {
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
-    this.refreshPromise = this.onTokenRefresh().finally(() => {
-      this.refreshPromise = null;
-    });
-    const newToken = await this.refreshPromise;
-    this.accessToken = newToken;
-    return newToken;
+    this.refreshPromise = this.onTokenRefresh()
+      .then((newToken) => {
+        this.accessToken = newToken;
+        return newToken;
+      })
+      .finally(() => {
+        this.refreshPromise = null;
+      });
+    return this.refreshPromise;
   }
 
   async get<T = unknown>(path: string, params?: Record<string, string>): Promise<T> {
