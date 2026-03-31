@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 
 export function registerMetadataTools(server: McpServer, client: BoxClient) {
   server.tool(
@@ -28,23 +29,24 @@ export function registerMetadataTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/metadata_templates/schema", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error creating metadata template: ${msg}` }], isError: true };
+        return toolError("Create metadata template", error, { display_name: args.display_name });
       }
     },
   );
 
   server.tool(
     "box_metadata_template_list",
-    "List all metadata templates available in the enterprise.",
-    {},
+    "List all metadata templates available in the enterprise. Supports pagination.",
+    {
+      marker: z.string().optional().describe("Pagination marker from a previous response"),
+      limit: z.number().int().min(1).max(1000).optional().describe("Maximum number of templates to return"),
+    },
     async () => {
       try {
         const result = await client.get("/metadata_templates/enterprise");
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing metadata templates: ${msg}` }], isError: true };
+        return toolError("List metadata templates", error);
       }
     },
   );
@@ -60,8 +62,7 @@ export function registerMetadataTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/metadata_templates/enterprise/${args.template_key}/schema`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting metadata template: ${msg}` }], isError: true };
+        return toolError("Get metadata template", error, { template_key: args.template_key });
       }
     },
   );
@@ -83,8 +84,7 @@ export function registerMetadataTools(server: McpServer, client: BoxClient) {
         }
         return { content: [{ type: "text" as const, text: JSON.stringify({ total_count: match.length, entries: match }, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error finding metadata template: ${msg}` }], isError: true };
+        return toolError("Find metadata template", error, { template_name: args.template_name });
       }
     },
   );
@@ -102,8 +102,7 @@ export function registerMetadataTools(server: McpServer, client: BoxClient) {
         const result = await client.post(`/files/${args.file_id}/metadata/enterprise/${args.template_key}`, args.metadata);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error setting metadata on file: ${msg}` }], isError: true };
+        return toolError("Set metadata on file", error, { file_id: args.file_id, template_key: args.template_key });
       }
     },
   );
@@ -120,15 +119,14 @@ export function registerMetadataTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/files/${args.file_id}/metadata/enterprise/${args.template_key}`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting metadata from file: ${msg}` }], isError: true };
+        return toolError("Get metadata from file", error, { file_id: args.file_id, template_key: args.template_key });
       }
     },
   );
 
   server.tool(
     "box_metadata_update_instance_on_file",
-    "Update metadata values on a file. Can optionally remove fields not included in the update.",
+    "Update metadata values on a file using JSON Patch operations. Can optionally remove fields not included in the update.",
     {
       file_id: z.string().describe("The ID of the file"),
       template_key: z.string().describe("The metadata template key"),
@@ -151,11 +149,10 @@ export function registerMetadataTools(server: McpServer, client: BoxClient) {
             }
           }
         }
-        const result = await client.put(`/files/${args.file_id}/metadata/enterprise/${args.template_key}`, ops);
+        const result = await client.jsonPatch(`/files/${args.file_id}/metadata/enterprise/${args.template_key}`, ops);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error updating metadata on file: ${msg}` }], isError: true };
+        return toolError("Update metadata on file", error, { file_id: args.file_id, template_key: args.template_key });
       }
     },
   );
@@ -172,8 +169,7 @@ export function registerMetadataTools(server: McpServer, client: BoxClient) {
         await client.delete(`/files/${args.file_id}/metadata/enterprise/${args.template_key}`);
         return { content: [{ type: "text" as const, text: `Metadata template "${args.template_key}" removed from file ${args.file_id}.` }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error removing metadata from file: ${msg}` }], isError: true };
+        return toolError("Remove metadata from file", error, { file_id: args.file_id, template_key: args.template_key });
       }
     },
   );

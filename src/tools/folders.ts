@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 
 export function registerFolderTools(server: McpServer, client: BoxClient) {
   server.tool(
@@ -14,49 +15,59 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/folders/${args.folder_id}`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting folder info: ${msg}` }], isError: true };
+        return toolError("Get folder info", error, { folder_id: args.folder_id });
       }
     },
   );
 
   server.tool(
     "box_folder_items_list",
-    "List all items (files and subfolders) in a Box folder. Supports recursive listing.",
+    "List all items (files and subfolders) in a Box folder. Supports pagination and recursive listing.",
     {
       folder_id: z.string().describe("The ID of the folder to list ('0' for root)"),
       is_recursive: z.boolean().optional().describe("Whether to list items recursively in subfolders"),
+      offset: z.number().int().min(0).optional().describe("Pagination offset for non-recursive listing (0-based)"),
       limit: z.number().int().min(1).max(1000).default(100).describe("Maximum number of items to return"),
     },
     async (args) => {
       try {
-        const params: Record<string, string> = {
-          limit: String(args.limit),
-          fields: "id,type,name,size,modified_at,parent",
-        };
         if (args.is_recursive) {
           const allItems: unknown[] = [];
           const collectItems = async (folderId: string, depth: number) => {
             if (depth > 5 || allItems.length >= args.limit) return;
-            const result = await client.get<{ entries: Array<{ id: string; type: string; [k: string]: unknown }> }>(
-              `/folders/${folderId}/items`,
-              { limit: "1000", fields: "id,type,name,size,modified_at,parent" },
-            );
-            for (const entry of result.entries) {
-              allItems.push(entry);
-              if (entry.type === "folder" && allItems.length < args.limit) {
-                await collectItems(entry.id, depth + 1);
+            let offset = 0;
+            const pageSize = 1000;
+            while (allItems.length < args.limit) {
+              const result = await client.get<{
+                entries: Array<{ id: string; type: string; [k: string]: unknown }>;
+                total_count: number;
+              }>(
+                `/folders/${folderId}/items`,
+                { limit: String(pageSize), offset: String(offset), fields: "id,type,name,size,modified_at,parent" },
+              );
+              for (const entry of result.entries) {
+                if (allItems.length >= args.limit) break;
+                allItems.push(entry);
+                if (entry.type === "folder" && allItems.length < args.limit) {
+                  await collectItems(entry.id, depth + 1);
+                }
               }
+              if (result.entries.length < pageSize) break;
+              offset += pageSize;
             }
           };
           await collectItems(args.folder_id, 0);
           return { content: [{ type: "text" as const, text: JSON.stringify({ total_count: allItems.length, entries: allItems.slice(0, args.limit) }, null, 2) }] };
         }
+        const params: Record<string, string> = {
+          limit: String(args.limit),
+          fields: "id,type,name,size,modified_at,parent",
+        };
+        if (args.offset !== undefined) params.offset = String(args.offset);
         const result = await client.get(`/folders/${args.folder_id}/items`, params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing folder items: ${msg}` }], isError: true };
+        return toolError("List folder items", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -73,8 +84,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/folders", { name: args.name, parent: { id: args.parent_folder_id } });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error creating folder: ${msg}` }], isError: true };
+        return toolError("Create folder", error, { name: args.name });
       }
     },
   );
@@ -93,8 +103,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         await client.delete(`/folders/${args.folder_id}`, params);
         return { content: [{ type: "text" as const, text: `Folder ${args.folder_id} deleted successfully.` }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error deleting folder: ${msg}` }], isError: true };
+        return toolError("Delete folder", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -114,8 +123,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.post(`/folders/${args.folder_id}/copy`, body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error copying folder: ${msg}` }], isError: true };
+        return toolError("Copy folder", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -132,8 +140,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/folders/${args.folder_id}`, { parent: { id: args.destination_parent_folder_id } });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error moving folder: ${msg}` }], isError: true };
+        return toolError("Move folder", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -150,8 +157,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/folders/${args.folder_id}`, { name: args.new_name });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error renaming folder: ${msg}` }], isError: true };
+        return toolError("Rename folder", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -168,8 +174,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/folders/${args.folder_id}`, { description: args.description });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error setting folder description: ${msg}` }], isError: true };
+        return toolError("Set folder description", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -190,8 +195,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/folders/${args.folder_id}`, { collections: [{ id: favorites.id }] });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error adding folder to favorites: ${msg}` }], isError: true };
+        return toolError("Add folder to favorites", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -207,8 +211,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/folders/${args.folder_id}`, { collections: [] });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error removing folder from favorites: ${msg}` }], isError: true };
+        return toolError("Remove folder from favorites", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -231,8 +234,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error setting collaboration settings: ${msg}` }], isError: true };
+        return toolError("Set collaboration settings", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -249,8 +251,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/folders/${args.folder_id}`, { sync_state: args.sync_state });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error setting sync state: ${msg}` }], isError: true };
+        return toolError("Set sync state", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -270,8 +271,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error setting upload email: ${msg}` }], isError: true };
+        return toolError("Set upload email", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -287,8 +287,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.get<{ tags?: string[] }>(`/folders/${args.folder_id}`, { fields: "tags" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result.tags ?? [], null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing folder tags: ${msg}` }], isError: true };
+        return toolError("List folder tags", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -308,8 +307,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/folders/${args.folder_id}`, { tags });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error adding tag to folder: ${msg}` }], isError: true };
+        return toolError("Add folder tag", error, { folder_id: args.folder_id, tag: args.tag });
       }
     },
   );
@@ -328,8 +326,7 @@ export function registerFolderTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/folders/${args.folder_id}`, { tags });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error removing tag from folder: ${msg}` }], isError: true };
+        return toolError("Remove folder tag", error, { folder_id: args.folder_id, tag: args.tag });
       }
     },
   );

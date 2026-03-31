@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 
 export function registerTaskTools(server: McpServer, client: BoxClient) {
   server.tool(
@@ -27,8 +28,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/tasks", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error creating completion task: ${msg}` }], isError: true };
+        return toolError("Create completion task", error, { file_id: args.file_id });
       }
     },
   );
@@ -57,8 +57,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/tasks", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error creating review task: ${msg}` }], isError: true };
+        return toolError("Create review task", error, { file_id: args.file_id });
       }
     },
   );
@@ -74,8 +73,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/tasks/${args.task_id}`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting task details: ${msg}` }], isError: true };
+        return toolError("Get task details", error, { task_id: args.task_id });
       }
     },
   );
@@ -101,8 +99,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/tasks/${args.task_id}`, body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error updating task: ${msg}` }], isError: true };
+        return toolError("Update task", error, { task_id: args.task_id });
       }
     },
   );
@@ -118,8 +115,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         await client.delete(`/tasks/${args.task_id}`);
         return { content: [{ type: "text" as const, text: `Task ${args.task_id} deleted successfully.` }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error deleting task: ${msg}` }], isError: true };
+        return toolError("Delete task", error, { task_id: args.task_id });
       }
     },
   );
@@ -135,8 +131,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/files/${args.file_id}/tasks`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing file tasks: ${msg}` }], isError: true };
+        return toolError("List file tasks", error, { file_id: args.file_id });
       }
     },
   );
@@ -156,8 +151,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error assigning task: ${msg}` }], isError: true };
+        return toolError("Assign task by email", error, { task_id: args.task_id, email: args.email });
       }
     },
   );
@@ -177,8 +171,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error assigning task: ${msg}` }], isError: true };
+        return toolError("Assign task by user ID", error, { task_id: args.task_id, user_id: args.user_id });
       }
     },
   );
@@ -194,8 +187,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/tasks/${args.task_id}/assignments`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing task assignments: ${msg}` }], isError: true };
+        return toolError("List task assignments", error, { task_id: args.task_id });
       }
     },
   );
@@ -211,8 +203,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/task_assignments/${args.assignment_id}`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting task assignment details: ${msg}` }], isError: true };
+        return toolError("Get task assignment details", error, { assignment_id: args.assignment_id });
       }
     },
   );
@@ -234,8 +225,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/task_assignments/${args.assignment_id}`, body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error updating task assignment: ${msg}` }], isError: true };
+        return toolError("Update task assignment", error, { assignment_id: args.assignment_id });
       }
     },
   );
@@ -251,8 +241,7 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
         await client.delete(`/task_assignments/${args.assignment_id}`);
         return { content: [{ type: "text" as const, text: `Task assignment ${args.assignment_id} removed successfully.` }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error removing task assignment: ${msg}` }], isError: true };
+        return toolError("Remove task assignment", error, { assignment_id: args.assignment_id });
       }
     },
   );

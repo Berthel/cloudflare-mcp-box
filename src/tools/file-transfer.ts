@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 import { CHARACTER_LIMIT } from "../lib/types.js";
 
 export function registerFileTransferTools(server: McpServer, client: BoxClient) {
@@ -34,8 +35,7 @@ export function registerFileTransferTools(server: McpServer, client: BoxClient) 
         }
         return { content: [{ type: "text" as const, text }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error downloading file: ${msg}` }], isError: true };
+        return toolError("Download file", error, { file_id: args.file_id });
       }
     },
   );
@@ -53,8 +53,7 @@ export function registerFileTransferTools(server: McpServer, client: BoxClient) 
         const result = await client.upload(args.parent_folder_id, args.file_name, args.content);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error uploading file: ${msg}` }], isError: true };
+        return toolError("Upload file", error, { file_name: args.file_name, parent_folder_id: args.parent_folder_id });
       }
     },
   );
@@ -93,15 +92,14 @@ export function registerFileTransferTools(server: McpServer, client: BoxClient) 
         }
 
         const textUrl = entry.content.url_template.replace("{+asset_path}", "");
-        const textResponse = await fetch(textUrl);
+        const textResponse = await client.getRaw(textUrl.replace("https://api.box.com/2.0", ""), undefined);
         let text = await textResponse.text();
         if (text.length > CHARACTER_LIMIT) {
           text = text.substring(0, CHARACTER_LIMIT) + `\n\n--- Content truncated at ${CHARACTER_LIMIT} characters ---`;
         }
         return { content: [{ type: "text" as const, text }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error extracting text: ${msg}` }], isError: true };
+        return toolError("Extract text", error, { file_id: args.file_id });
       }
     },
   );

@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 
 export function registerDocgenTools(server: McpServer, client: BoxClient) {
   server.tool(
@@ -14,8 +15,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/docgen_templates", { file: { id: args.file_id, type: "file" } });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error creating docgen template: ${msg}` }], isError: true };
+        return toolError("Create docgen template", error, { file_id: args.file_id });
       }
     },
   );
@@ -35,8 +35,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         const result = await client.get("/docgen_templates", params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing docgen templates: ${msg}` }], isError: true };
+        return toolError("List docgen templates", error);
       }
     },
   );
@@ -52,8 +51,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/docgen_templates/${args.template_id}`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting docgen template: ${msg}` }], isError: true };
+        return toolError("Get docgen template", error, { template_id: args.template_id });
       }
     },
   );
@@ -75,8 +73,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         }
         return { content: [{ type: "text" as const, text: JSON.stringify({ total_count: match.length, entries: match }, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error finding docgen template: ${msg}` }], isError: true };
+        return toolError("Find docgen template", error, { template_name: args.template_name });
       }
     },
   );
@@ -99,8 +96,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/docgen_templates/${args.template_id}/tags`, params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing template tags: ${msg}` }], isError: true };
+        return toolError("List template tags", error, { template_id: args.template_id });
       }
     },
   );
@@ -121,8 +117,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         const result = await client.get("/docgen_template_jobs", params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing template jobs: ${msg}` }], isError: true };
+        return toolError("List template jobs", error, { template_id: args.template_id });
       }
     },
   );
@@ -147,8 +142,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error creating docgen batch: ${msg}` }], isError: true };
+        return toolError("Create docgen batch", error, { template_id: args.docgen_template_id });
       }
     },
   );
@@ -175,8 +169,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/docgen_batches", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error creating document from user input: ${msg}` }], isError: true };
+        return toolError("Create document from user input", error, { template_id: args.docgen_template_id });
       }
     },
   );
@@ -197,8 +190,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         const result = await client.get("/docgen_batch_jobs_v2", params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing batch jobs: ${msg}` }], isError: true };
+        return toolError("List batch jobs", error, { batch_id: args.batch_id });
       }
     },
   );
@@ -214,8 +206,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/docgen_jobs/${args.job_id}`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting docgen job: ${msg}` }], isError: true };
+        return toolError("Get docgen job", error, { job_id: args.job_id });
       }
     },
   );
@@ -235,8 +226,7 @@ export function registerDocgenTools(server: McpServer, client: BoxClient) {
         const result = await client.get("/docgen_jobs", params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing docgen jobs: ${msg}` }], isError: true };
+        return toolError("List docgen jobs", error);
       }
     },
   );

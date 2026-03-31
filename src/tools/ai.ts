@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 
 export function registerAiTools(server: McpServer, client: BoxClient) {
   server.tool(
@@ -22,8 +23,7 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/ai/ask", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error asking Box AI: ${msg}` }], isError: true };
+        return toolError("Ask Box AI (single file)", error, { file_id: args.file_id });
       }
     },
   );
@@ -47,8 +47,7 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/ai/ask", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error asking Box AI: ${msg}` }], isError: true };
+        return toolError("Ask Box AI (multi file)", error);
       }
     },
   );
@@ -72,8 +71,7 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/ai/ask", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error asking Box AI Hub: ${msg}` }], isError: true };
+        return toolError("Ask Box AI Hub", error, { hub_id: args.hub_id });
       }
     },
   );
@@ -96,8 +94,7 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/ai/extract", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error extracting with Box AI: ${msg}` }], isError: true };
+        return toolError("Extract freeform with Box AI", error);
       }
     },
   );
@@ -124,8 +121,7 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/ai/extract_structured", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error extracting structured data: ${msg}` }], isError: true };
+        return toolError("Extract structured fields", error);
       }
     },
   );
@@ -148,8 +144,7 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/ai/extract_structured", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error extracting structured data: ${msg}` }], isError: true };
+        return toolError("Extract structured (template)", error, { template_key: args.template_key });
       }
     },
   );
@@ -175,8 +170,7 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/ai/extract_structured", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error in enhanced extraction: ${msg}` }], isError: true };
+        return toolError("Enhanced extraction (fields)", error);
       }
     },
   );
@@ -198,8 +192,7 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         const result = await client.post("/ai/extract_structured", body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error in enhanced extraction: ${msg}` }], isError: true };
+        return toolError("Enhanced extraction (template)", error, { template_key: args.template_key });
       }
     },
   );
@@ -215,25 +208,26 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/ai_agents/${args.ai_agent_id}`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting AI agent info: ${msg}` }], isError: true };
+        return toolError("Get AI agent info", error, { ai_agent_id: args.ai_agent_id });
       }
     },
   );
 
   server.tool(
     "box_ai_agents_list",
-    "List all available Box AI agents. Returns agent IDs, names, and configurations.",
+    "List all available Box AI agents. Returns agent IDs, names, and configurations. Supports pagination.",
     {
       limit: z.number().int().min(1).max(1000).default(100).describe("Maximum number of agents to return"),
+      marker: z.string().optional().describe("Pagination marker from a previous response"),
     },
     async (args) => {
       try {
-        const result = await client.get("/ai_agents", { limit: String(args.limit) });
+        const params: Record<string, string> = { limit: String(args.limit) };
+        if (args.marker) params.marker = args.marker;
+        const result = await client.get("/ai_agents", params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing AI agents: ${msg}` }], isError: true };
+        return toolError("List AI agents", error);
       }
     },
   );
@@ -253,8 +247,7 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         );
         return { content: [{ type: "text" as const, text: JSON.stringify({ total_count: filtered.length, entries: filtered }, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error searching AI agents: ${msg}` }], isError: true };
+        return toolError("Search AI agents", error, { name: args.name });
       }
     },
   );

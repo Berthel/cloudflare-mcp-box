@@ -1,19 +1,25 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 
 export function registerUserTools(server: McpServer, client: BoxClient) {
   server.tool(
     "box_users_list",
-    "List all users in the Box enterprise. Returns user IDs, names, emails, and status.",
-    {},
-    async () => {
+    "List all users in the Box enterprise. Returns user IDs, names, emails, and status. Supports pagination.",
+    {
+      offset: z.number().int().min(0).optional().describe("Pagination offset (0-based)"),
+      limit: z.number().int().min(1).max(1000).optional().describe("Maximum users to return (default 100)"),
+    },
+    async (args) => {
       try {
-        const result = await client.get("/users");
+        const params: Record<string, string> = {};
+        if (args.offset !== undefined) params.offset = String(args.offset);
+        if (args.limit !== undefined) params.limit = String(args.limit);
+        const result = await client.get("/users", params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing users: ${msg}` }], isError: true };
+        return toolError("List users", error);
       }
     },
   );
@@ -23,14 +29,18 @@ export function registerUserTools(server: McpServer, client: BoxClient) {
     "Find Box users by their name. Returns matching users with IDs and email addresses.",
     {
       name: z.string().min(1).describe("The user name to search for"),
+      offset: z.number().int().min(0).optional().describe("Pagination offset"),
+      limit: z.number().int().min(1).max(1000).optional().describe("Maximum results to return"),
     },
     async (args) => {
       try {
-        const result = await client.get("/users", { filter_term: args.name });
+        const params: Record<string, string> = { filter_term: args.name };
+        if (args.offset !== undefined) params.offset = String(args.offset);
+        if (args.limit !== undefined) params.limit = String(args.limit);
+        const result = await client.get("/users", params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error locating user by name: ${msg}` }], isError: true };
+        return toolError("Locate user by name", error, { name: args.name });
       }
     },
   );
@@ -46,8 +56,7 @@ export function registerUserTools(server: McpServer, client: BoxClient) {
         const result = await client.get("/users", { filter_term: args.email });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error locating user by email: ${msg}` }], isError: true };
+        return toolError("Locate user by email", error, { email: args.email });
       }
     },
   );
@@ -57,14 +66,18 @@ export function registerUserTools(server: McpServer, client: BoxClient) {
     "Search for Box users by name or email. More flexible than locate — matches partial strings.",
     {
       query: z.string().min(1).describe("Search query matching name or email"),
+      offset: z.number().int().min(0).optional().describe("Pagination offset"),
+      limit: z.number().int().min(1).max(1000).optional().describe("Maximum results to return"),
     },
     async (args) => {
       try {
-        const result = await client.get("/users", { filter_term: args.query });
+        const params: Record<string, string> = { filter_term: args.query };
+        if (args.offset !== undefined) params.offset = String(args.offset);
+        if (args.limit !== undefined) params.limit = String(args.limit);
+        const result = await client.get("/users", params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error searching users: ${msg}` }], isError: true };
+        return toolError("Search users", error, { query: args.query });
       }
     },
   );

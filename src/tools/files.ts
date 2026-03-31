@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 
 export function registerFileTools(server: McpServer, client: BoxClient) {
   server.tool(
@@ -14,8 +15,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/files/${args.file_id}`);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting file info: ${msg}` }], isError: true };
+        return toolError("Get file info", error, { file_id: args.file_id });
       }
     },
   );
@@ -37,8 +37,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.post(`/files/${args.file_id}/copy`, body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error copying file: ${msg}` }], isError: true };
+        return toolError("Copy file", error, { file_id: args.file_id });
       }
     },
   );
@@ -54,8 +53,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         await client.delete(`/files/${args.file_id}`);
         return { content: [{ type: "text" as const, text: `File ${args.file_id} deleted successfully.` }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error deleting file: ${msg}` }], isError: true };
+        return toolError("Delete file", error, { file_id: args.file_id });
       }
     },
   );
@@ -72,8 +70,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, { parent: { id: args.destination_folder_id } });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error moving file: ${msg}` }], isError: true };
+        return toolError("Move file", error, { file_id: args.file_id });
       }
     },
   );
@@ -90,8 +87,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, { name: args.new_name });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error renaming file: ${msg}` }], isError: true };
+        return toolError("Rename file", error, { file_id: args.file_id });
       }
     },
   );
@@ -108,8 +104,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, { description: args.description });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error setting file description: ${msg}` }], isError: true };
+        return toolError("Set file description", error, { file_id: args.file_id });
       }
     },
   );
@@ -126,8 +121,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, { disposition_at: args.retention_date });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error setting retention date: ${msg}` }], isError: true };
+        return toolError("Set retention date", error, { file_id: args.file_id });
       }
     },
   );
@@ -143,8 +137,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, { disposition_at: null });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error clearing retention date: ${msg}` }], isError: true };
+        return toolError("Clear retention date", error, { file_id: args.file_id });
       }
     },
   );
@@ -165,8 +158,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, { lock });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error locking file: ${msg}` }], isError: true };
+        return toolError("Lock file", error, { file_id: args.file_id });
       }
     },
   );
@@ -182,8 +174,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, { lock: null });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error unlocking file: ${msg}` }], isError: true };
+        return toolError("Unlock file", error, { file_id: args.file_id });
       }
     },
   );
@@ -201,8 +192,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error setting download permissions: ${msg}` }], isError: true };
+        return toolError("Set download open", error, { file_id: args.file_id });
       }
     },
   );
@@ -220,8 +210,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error setting download permissions: ${msg}` }], isError: true };
+        return toolError("Set download company-only", error, { file_id: args.file_id });
       }
     },
   );
@@ -239,8 +228,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error resetting download permissions: ${msg}` }], isError: true };
+        return toolError("Reset download permissions", error, { file_id: args.file_id });
       }
     },
   );
@@ -256,8 +244,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.get<{ tags?: string[] }>(`/files/${args.file_id}`, { fields: "tags" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result.tags ?? [], null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing file tags: ${msg}` }], isError: true };
+        return toolError("List file tags", error, { file_id: args.file_id });
       }
     },
   );
@@ -277,8 +264,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, { tags });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error adding tag to file: ${msg}` }], isError: true };
+        return toolError("Add file tag", error, { file_id: args.file_id, tag: args.tag });
       }
     },
   );
@@ -297,8 +283,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, { tags });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error removing tag from file: ${msg}` }], isError: true };
+        return toolError("Remove file tag", error, { file_id: args.file_id, tag: args.tag });
       }
     },
   );
@@ -334,8 +319,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const location = response.headers.get("location");
         return { content: [{ type: "text" as const, text: JSON.stringify({ thumbnail_url: location ?? response.url }, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting thumbnail URL: ${msg}` }], isError: true };
+        return toolError("Get thumbnail URL", error, { file_id: args.file_id });
       }
     },
   );
@@ -372,8 +356,7 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
         const mimeType = ext === "jpg" ? "image/jpeg" : "image/png";
         return { content: [{ type: "image" as const, data: base64, mimeType }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error downloading thumbnail: ${msg}` }], isError: true };
+        return toolError("Download thumbnail", error, { file_id: args.file_id });
       }
     },
   );

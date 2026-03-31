@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 
 const SHARED_LINK_ACCESS = z.enum(["open", "company", "collaborators"])
   .describe("Access level: 'open' (anyone with link), 'company' (enterprise only), 'collaborators' (invited only)");
@@ -28,8 +29,6 @@ function buildSharedLinkBody(args: {
 }
 
 export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
-  // --- File shared links ---
-
   server.tool(
     "box_shared_link_file_get",
     "Get the shared link for a Box file, if one exists.",
@@ -41,8 +40,7 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/files/${args.file_id}`, { fields: "shared_link" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting file shared link: ${msg}` }], isError: true };
+        return toolError("Get file shared link", error, { file_id: args.file_id });
       }
     },
   );
@@ -66,8 +64,7 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, body, { fields: "shared_link" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error creating/updating file shared link: ${msg}` }], isError: true };
+        return toolError("Create/update file shared link", error, { file_id: args.file_id });
       }
     },
   );
@@ -83,8 +80,7 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/files/${args.file_id}`, { shared_link: null }, { fields: "shared_link" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error removing file shared link: ${msg}` }], isError: true };
+        return toolError("Remove file shared link", error, { file_id: args.file_id });
       }
     },
   );
@@ -101,13 +97,10 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.getSharedItem(args.shared_link_url, args.password);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error finding item by shared link: ${msg}` }], isError: true };
+        return toolError("Find item by shared link", error);
       }
     },
   );
-
-  // --- Folder shared links ---
 
   server.tool(
     "box_shared_link_folder_get",
@@ -120,8 +113,7 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/folders/${args.folder_id}`, { fields: "shared_link" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting folder shared link: ${msg}` }], isError: true };
+        return toolError("Get folder shared link", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -144,8 +136,7 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/folders/${args.folder_id}`, body, { fields: "shared_link" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error creating/updating folder shared link: ${msg}` }], isError: true };
+        return toolError("Create/update folder shared link", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -161,8 +152,7 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/folders/${args.folder_id}`, { shared_link: null }, { fields: "shared_link" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error removing folder shared link: ${msg}` }], isError: true };
+        return toolError("Remove folder shared link", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -179,13 +169,10 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.getSharedItem(args.shared_link_url, args.password);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error finding item by shared link: ${msg}` }], isError: true };
+        return toolError("Find folder by shared link", error);
       }
     },
   );
-
-  // --- Web link shared links ---
 
   server.tool(
     "box_shared_link_web_link_get",
@@ -198,8 +185,7 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.get(`/web_links/${args.web_link_id}`, { fields: "shared_link" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error getting web link shared link: ${msg}` }], isError: true };
+        return toolError("Get web link shared link", error, { web_link_id: args.web_link_id });
       }
     },
   );
@@ -220,8 +206,7 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/web_links/${args.web_link_id}`, body, { fields: "shared_link" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error creating/updating web link shared link: ${msg}` }], isError: true };
+        return toolError("Create/update web link shared link", error, { web_link_id: args.web_link_id });
       }
     },
   );
@@ -237,8 +222,7 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.put(`/web_links/${args.web_link_id}`, { shared_link: null }, { fields: "shared_link" });
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error removing web link shared link: ${msg}` }], isError: true };
+        return toolError("Remove web link shared link", error, { web_link_id: args.web_link_id });
       }
     },
   );
@@ -255,8 +239,7 @@ export function registerSharedLinkTools(server: McpServer, client: BoxClient) {
         const result = await client.getSharedItem(args.shared_link_url, args.password);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error finding item by shared link: ${msg}` }], isError: true };
+        return toolError("Find web link by shared link", error);
       }
     },
   );

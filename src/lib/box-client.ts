@@ -5,6 +5,61 @@
 
 import { BOX_API_BASE, BOX_UPLOAD_BASE } from "./types.js";
 
+// ── Structured error class ──────────────────────────────────────────
+
+type BoxErrorBody = {
+  type?: string;
+  status?: number;
+  code?: string;
+  message?: string;
+  context_info?: { errors?: Array<{ reason?: string; name?: string; message?: string }> };
+  request_id?: string;
+};
+
+export class BoxApiError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly requestId: string | undefined;
+  readonly contextErrors: Array<{ reason?: string; name?: string; message?: string }>;
+
+  constructor(
+    status: number,
+    method: string,
+    path: string,
+    body: BoxErrorBody | string,
+  ) {
+    const parsed = typeof body === "string" ? BoxApiError.tryParse(body) : body;
+    const boxMsg = parsed?.message ?? (typeof body === "string" ? body : "Unknown error");
+    const code = parsed?.code ?? `http_${status}`;
+    const requestId = parsed?.request_id;
+    const contextErrors = parsed?.context_info?.errors ?? [];
+
+    let detail = contextErrors
+      .map((e) => e.message ?? e.reason)
+      .filter(Boolean)
+      .join("; ");
+    if (detail) detail = ` Details: ${detail}.`;
+
+    const fullMsg = `Box API ${method} ${path} failed (${status} ${code}): ${boxMsg}.${detail}`;
+    super(fullMsg);
+    this.name = "BoxApiError";
+    this.status = status;
+    this.code = code;
+    this.requestId = requestId;
+    this.contextErrors = contextErrors;
+  }
+
+  private static tryParse(text: string): BoxErrorBody | null {
+    try {
+      return JSON.parse(text) as BoxErrorBody;
+    } catch {
+      return null;
+    }
+  }
+}
+
+// ── Client options ──────────────────────────────────────────────────
+
 export type BoxClientOptions = {
   accessToken: string;
   onTokenRefresh: () => Promise<string>;
@@ -58,6 +113,16 @@ export class BoxClient {
   }
 
   /**
+   * PATCH with application/json-patch+json Content-Type.
+   * Required by Box metadata instance update API.
+   */
+  async jsonPatch<T = unknown>(path: string, operations: unknown): Promise<T> {
+    return this.request<T>("PUT", path, operations, undefined, {
+      "Content-Type": "application/json-patch+json",
+    });
+  }
+
+  /**
    * Fetch raw Response (for file downloads, thumbnails, etc.).
    * Does NOT parse JSON — caller handles the response body.
    */
@@ -95,7 +160,7 @@ export class BoxClient {
       return fd;
     };
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: "POST",
       headers: { Authorization: `Bearer ${this.accessToken}` },
       body: buildFormData(),
@@ -103,19 +168,25 @@ export class BoxClient {
 
     if (response.status === 401) {
       await this.refreshToken();
-      const retryResponse = await fetch(url, {
+      response = await fetch(url, {
         method: "POST",
         headers: { Authorization: `Bearer ${this.accessToken}` },
         body: buildFormData(),
       });
-      if (!retryResponse.ok) {
-        throw new Error(`Box upload failed after token refresh: ${retryResponse.status} ${await retryResponse.text()}`);
-      }
-      return retryResponse.json();
+    }
+
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After") ?? "60";
+      throw new BoxApiError(429, "POST", "/files/content", {
+        code: "rate_limit",
+        message: `Rate limited by Box. Retry after ${retryAfter} seconds`,
+        status: 429,
+      });
     }
 
     if (!response.ok) {
-      throw new Error(`Box upload failed: ${response.status} ${await response.text()}`);
+      const errorText = await response.text();
+      throw new BoxApiError(response.status, "POST", "/files/content", errorText);
     }
     return response.json();
   }
@@ -141,7 +212,7 @@ export class BoxClient {
       Authorization: `Bearer ${this.accessToken}`,
       ...extraHeaders,
     };
-    if (body !== undefined) {
+    if (body !== undefined && !headers["Content-Type"]) {
       headers["Content-Type"] = "application/json";
     }
 
@@ -161,6 +232,15 @@ export class BoxClient {
       });
     }
 
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After") ?? "60";
+      throw new BoxApiError(429, method, path, {
+        code: "rate_limit",
+        message: `Rate limited by Box. Retry after ${retryAfter} seconds`,
+        status: 429,
+      });
+    }
+
     return response;
   }
 
@@ -175,7 +255,7 @@ export class BoxClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Box API error ${response.status} ${method} ${path}: ${errorText}`);
+      throw new BoxApiError(response.status, method, path, errorText);
     }
 
     if (response.status === 204) {

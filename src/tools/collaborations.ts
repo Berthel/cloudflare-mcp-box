@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 
 const COLLABORATION_ROLE = z.enum([
   "editor", "viewer", "previewer", "uploader", "previewer uploader",
@@ -13,14 +14,18 @@ export function registerCollaborationTools(server: McpServer, client: BoxClient)
     "List all collaborations on a Box file. Shows who has access and their roles.",
     {
       file_id: z.string().describe("The ID of the file"),
+      limit: z.number().int().min(1).max(1000).optional().describe("Maximum results to return"),
+      marker: z.string().optional().describe("Pagination marker from a previous response"),
     },
     async (args) => {
       try {
-        const result = await client.get(`/files/${args.file_id}/collaborations`);
+        const params: Record<string, string> = {};
+        if (args.limit !== undefined) params.limit = String(args.limit);
+        if (args.marker) params.marker = args.marker;
+        const result = await client.get(`/files/${args.file_id}/collaborations`, params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing file collaborations: ${msg}` }], isError: true };
+        return toolError("List file collaborations", error, { file_id: args.file_id });
       }
     },
   );
@@ -30,14 +35,18 @@ export function registerCollaborationTools(server: McpServer, client: BoxClient)
     "List all collaborations on a Box folder. Shows who has access and their roles.",
     {
       folder_id: z.string().describe("The ID of the folder"),
+      limit: z.number().int().min(1).max(1000).optional().describe("Maximum results to return"),
+      marker: z.string().optional().describe("Pagination marker from a previous response"),
     },
     async (args) => {
       try {
-        const result = await client.get(`/folders/${args.folder_id}/collaborations`);
+        const params: Record<string, string> = {};
+        if (args.limit !== undefined) params.limit = String(args.limit);
+        if (args.marker) params.marker = args.marker;
+        const result = await client.get(`/folders/${args.folder_id}/collaborations`, params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error listing folder collaborations: ${msg}` }], isError: true };
+        return toolError("List folder collaborations", error, { folder_id: args.folder_id });
       }
     },
   );
@@ -53,8 +62,7 @@ export function registerCollaborationTools(server: McpServer, client: BoxClient)
         await client.delete(`/collaborations/${args.collaboration_id}`);
         return { content: [{ type: "text" as const, text: `Collaboration ${args.collaboration_id} deleted successfully.` }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error deleting collaboration: ${msg}` }], isError: true };
+        return toolError("Delete collaboration", error, { collaboration_id: args.collaboration_id });
       }
     },
   );
@@ -79,8 +87,7 @@ export function registerCollaborationTools(server: McpServer, client: BoxClient)
         const result = await client.put(`/collaborations/${args.collaboration_id}`, body);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error updating collaboration: ${msg}` }], isError: true };
+        return toolError("Update collaboration", error, { collaboration_id: args.collaboration_id });
       }
     },
   );
@@ -110,8 +117,7 @@ export function registerCollaborationTools(server: McpServer, client: BoxClient)
         const result = await client.post("/collaborations", body, params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error adding file collaborator: ${msg}` }], isError: true };
+        return toolError("Add file collaborator", error, { file_id: args.file_id, user_id: args.user_id });
       }
     },
   );
@@ -141,8 +147,7 @@ export function registerCollaborationTools(server: McpServer, client: BoxClient)
         const result = await client.post("/collaborations", body, params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error adding file collaborator: ${msg}` }], isError: true };
+        return toolError("Add file collaborator by email", error, { file_id: args.file_id, user_login: args.user_login });
       }
     },
   );
@@ -172,8 +177,7 @@ export function registerCollaborationTools(server: McpServer, client: BoxClient)
         const result = await client.post("/collaborations", body, params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error adding file group collaborator: ${msg}` }], isError: true };
+        return toolError("Add file group collaborator", error, { file_id: args.file_id, group_id: args.group_id });
       }
     },
   );
@@ -205,8 +209,7 @@ export function registerCollaborationTools(server: McpServer, client: BoxClient)
         const result = await client.post("/collaborations", body, params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error adding folder collaborator: ${msg}` }], isError: true };
+        return toolError("Add folder collaborator", error, { folder_id: args.folder_id, user_id: args.user_id });
       }
     },
   );
@@ -238,8 +241,7 @@ export function registerCollaborationTools(server: McpServer, client: BoxClient)
         const result = await client.post("/collaborations", body, params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error adding folder collaborator: ${msg}` }], isError: true };
+        return toolError("Add folder collaborator by email", error, { folder_id: args.folder_id, user_login: args.user_login });
       }
     },
   );
@@ -271,8 +273,7 @@ export function registerCollaborationTools(server: McpServer, client: BoxClient)
         const result = await client.post("/collaborations", body, params);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error adding folder group collaborator: ${msg}` }], isError: true };
+        return toolError("Add folder group collaborator", error, { folder_id: args.folder_id, group_id: args.group_id });
       }
     },
   );

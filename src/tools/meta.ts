@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { BoxClient } from "../lib/box-client.js";
+import { toolError } from "../lib/errors.js";
 
 export function registerMetaTools(server: McpServer, client: BoxClient) {
   server.tool(
@@ -11,8 +12,7 @@ export function registerMetaTools(server: McpServer, client: BoxClient) {
         const user = await client.get("/users/me");
         return { content: [{ type: "text" as const, text: JSON.stringify(user, null, 2) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: "text" as const, text: `Error fetching current user: ${msg}` }], isError: true };
+        return toolError("Get current user", error);
       }
     },
   );
