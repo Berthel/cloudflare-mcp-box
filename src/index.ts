@@ -100,13 +100,13 @@ export class BoxMcpAgent extends McpAgent<Env, unknown, BoxOAuthProps> {
 
     const tokenData = (await response.json()) as {
       access_token: string;
-      refresh_token: string;
+      refresh_token?: string;
       expires_in: number;
     };
 
     const newTokens: StoredTokens = {
       accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
+      refreshToken: tokenData.refresh_token ?? refreshToken,
       expiresAt: Date.now() + tokenData.expires_in * 1000,
     };
 
