@@ -44,6 +44,13 @@ app.use("*", async (c, next) => {
       );
     }
   }
+  if (!c.env.OAUTH_KV) {
+    return c.text(
+      "Server configuration error: missing OAUTH_KV binding. Add a kv_namespaces entry in wrangler.jsonc.",
+      500,
+    );
+  }
+
   await next();
 });
 
