@@ -9,9 +9,14 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
     {
       file_id: z.string().describe("The ID of the Box file"),
     },
-    async () => {
-      // TODO: GET /files/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get(`/files/${args.file_id}`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error getting file info: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -24,9 +29,17 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
       new_name: z.string().optional().describe("New name for the copied file (defaults to original name)"),
       version_number: z.string().optional().describe("Specific file version to copy"),
     },
-    async () => {
-      // TODO: POST /files/:id/copy
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = { parent: { id: args.destination_folder_id } };
+        if (args.new_name) body.name = args.new_name;
+        if (args.version_number) body.version = args.version_number;
+        const result = await client.post(`/files/${args.file_id}/copy`, body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error copying file: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -36,9 +49,14 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
     {
       file_id: z.string().describe("The ID of the file to delete"),
     },
-    async () => {
-      // TODO: DELETE /files/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        await client.delete(`/files/${args.file_id}`);
+        return { content: [{ type: "text" as const, text: `File ${args.file_id} deleted successfully.` }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error deleting file: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -49,9 +67,14 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
       file_id: z.string().describe("The ID of the file to move"),
       destination_folder_id: z.string().describe("The ID of the destination folder"),
     },
-    async () => {
-      // TODO: PUT /files/:id (parent.id)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.put(`/files/${args.file_id}`, { parent: { id: args.destination_folder_id } });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error moving file: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -62,9 +85,14 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
       file_id: z.string().describe("The ID of the file to rename"),
       new_name: z.string().describe("The new name for the file (including extension)"),
     },
-    async () => {
-      // TODO: PUT /files/:id (name)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.put(`/files/${args.file_id}`, { name: args.new_name });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error renaming file: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -75,9 +103,14 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
       file_id: z.string().describe("The ID of the file"),
       description: z.string().describe("The new description text for the file"),
     },
-    async () => {
-      // TODO: PUT /files/:id (description)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.put(`/files/${args.file_id}`, { description: args.description });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error setting file description: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -88,9 +121,14 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
       file_id: z.string().describe("The ID of the file"),
       retention_date: z.string().describe("ISO 8601 date string for the retention date, e.g. '2025-12-31T00:00:00Z'"),
     },
-    async () => {
-      // TODO: PUT /files/:id (disposition_at)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.put(`/files/${args.file_id}`, { disposition_at: args.retention_date });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error setting retention date: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -100,9 +138,14 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
     {
       file_id: z.string().describe("The ID of the file"),
     },
-    async () => {
-      // TODO: PUT /files/:id (disposition_at: null)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.put(`/files/${args.file_id}`, { disposition_at: null });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error clearing retention date: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -114,9 +157,17 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
       lock_expires_at: z.string().optional().describe("ISO 8601 date when the lock expires"),
       is_download_prevented: z.boolean().optional().describe("Whether to also prevent downloads while locked"),
     },
-    async () => {
-      // TODO: PUT /files/:id (lock)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const lock: Record<string, unknown> = { type: "lock" };
+        if (args.lock_expires_at) lock.expires_at = args.lock_expires_at;
+        if (args.is_download_prevented !== undefined) lock.is_download_prevented = args.is_download_prevented;
+        const result = await client.put(`/files/${args.file_id}`, { lock });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error locking file: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -126,9 +177,14 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
     {
       file_id: z.string().describe("The ID of the file to unlock"),
     },
-    async () => {
-      // TODO: PUT /files/:id (lock: null)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.put(`/files/${args.file_id}`, { lock: null });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error unlocking file: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -138,9 +194,16 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
     {
       file_id: z.string().describe("The ID of the file"),
     },
-    async () => {
-      // TODO: PUT /files/:id (shared_link.permissions)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.put(`/files/${args.file_id}`, {
+          shared_link: { permissions: { can_download: true } },
+        });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error setting download permissions: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -150,9 +213,16 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
     {
       file_id: z.string().describe("The ID of the file"),
     },
-    async () => {
-      // TODO: PUT /files/:id (shared_link.permissions)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.put(`/files/${args.file_id}`, {
+          shared_link: { access: "company", permissions: { can_download: true } },
+        });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error setting download permissions: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -162,9 +232,16 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
     {
       file_id: z.string().describe("The ID of the file"),
     },
-    async () => {
-      // TODO: PUT /files/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.put(`/files/${args.file_id}`, {
+          shared_link: null,
+        });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error resetting download permissions: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -174,9 +251,14 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
     {
       file_id: z.string().describe("The ID of the file"),
     },
-    async () => {
-      // TODO: GET /files/:id?fields=tags
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get<{ tags?: string[] }>(`/files/${args.file_id}`, { fields: "tags" });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result.tags ?? [], null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error listing file tags: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -187,9 +269,17 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
       file_id: z.string().describe("The ID of the file"),
       tag: z.string().describe("The tag to add to the file"),
     },
-    async () => {
-      // TODO: PUT /files/:id (tags)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const file = await client.get<{ tags?: string[] }>(`/files/${args.file_id}`, { fields: "tags" });
+        const tags = file.tags ?? [];
+        if (!tags.includes(args.tag)) tags.push(args.tag);
+        const result = await client.put(`/files/${args.file_id}`, { tags });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error adding tag to file: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -200,9 +290,16 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
       file_id: z.string().describe("The ID of the file"),
       tag: z.string().describe("The tag to remove from the file"),
     },
-    async () => {
-      // TODO: PUT /files/:id (tags)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const file = await client.get<{ tags?: string[] }>(`/files/${args.file_id}`, { fields: "tags" });
+        const tags = (file.tags ?? []).filter((t) => t !== args.tag);
+        const result = await client.put(`/files/${args.file_id}`, { tags });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error removing tag from file: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -217,9 +314,29 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
       max_height: z.number().int().optional().describe("Maximum thumbnail height in pixels"),
       max_width: z.number().int().optional().describe("Maximum thumbnail width in pixels"),
     },
-    async () => {
-      // TODO: GET /files/:id/thumbnail.:extension
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const ext = args.extension ?? "png";
+        const params: Record<string, string> = {};
+        if (args.min_height) params.min_height = String(args.min_height);
+        if (args.min_width) params.min_width = String(args.min_width);
+        if (args.max_height) params.max_height = String(args.max_height);
+        if (args.max_width) params.max_width = String(args.max_width);
+        const response = await client.getRaw(`/files/${args.file_id}/thumbnail.${ext}`, params);
+        if (response.status === 202 || response.status === 302) {
+          const location = response.headers.get("location");
+          return { content: [{ type: "text" as const, text: JSON.stringify({ status: "pending", thumbnail_url: location }, null, 2) }] };
+        }
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Box API error ${response.status}: ${errorText}`);
+        }
+        const location = response.headers.get("location");
+        return { content: [{ type: "text" as const, text: JSON.stringify({ thumbnail_url: location ?? response.url }, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error getting thumbnail URL: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -234,9 +351,30 @@ export function registerFileTools(server: McpServer, client: BoxClient) {
       max_height: z.number().int().optional().describe("Maximum thumbnail height in pixels"),
       max_width: z.number().int().optional().describe("Maximum thumbnail width in pixels"),
     },
-    async () => {
-      // TODO: GET /files/:id/thumbnail.:extension (binary)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const ext = args.extension ?? "png";
+        const params: Record<string, string> = {};
+        if (args.min_height) params.min_height = String(args.min_height);
+        if (args.min_width) params.min_width = String(args.min_width);
+        if (args.max_height) params.max_height = String(args.max_height);
+        if (args.max_width) params.max_width = String(args.max_width);
+        const response = await client.getRaw(`/files/${args.file_id}/thumbnail.${ext}`, params);
+        if (response.status === 202) {
+          return { content: [{ type: "text" as const, text: "Thumbnail is being generated. Try again in a few seconds." }] };
+        }
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Box API error ${response.status}: ${errorText}`);
+        }
+        const buffer = await response.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        const mimeType = ext === "jpg" ? "image/jpeg" : "image/png";
+        return { content: [{ type: "image" as const, data: base64, mimeType }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error downloading thumbnail: ${msg}` }], isError: true };
+      }
     },
   );
 }

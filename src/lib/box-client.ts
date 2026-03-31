@@ -13,26 +13,65 @@ export type BoxClientOptions = {
 export class BoxClient {
   private accessToken: string;
   private onTokenRefresh: () => Promise<string>;
+  private refreshPromise: Promise<string> | null = null;
 
   constructor(options: BoxClientOptions) {
     this.accessToken = options.accessToken;
     this.onTokenRefresh = options.onTokenRefresh;
   }
 
+  /**
+   * Coalesces concurrent token refreshes into a single request.
+   * Subsequent callers await the same in-flight Promise instead of
+   * triggering independent refresh calls to Box.
+   */
+  private async refreshToken(): Promise<string> {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+    this.refreshPromise = this.onTokenRefresh().finally(() => {
+      this.refreshPromise = null;
+    });
+    const newToken = await this.refreshPromise;
+    this.accessToken = newToken;
+    return newToken;
+  }
+
   async get<T = unknown>(path: string, params?: Record<string, string>): Promise<T> {
     return this.request<T>("GET", path, undefined, params);
   }
 
-  async post<T = unknown>(path: string, body?: unknown): Promise<T> {
-    return this.request<T>("POST", path, body);
+  async post<T = unknown>(path: string, body?: unknown, params?: Record<string, string>): Promise<T> {
+    return this.request<T>("POST", path, body, params);
   }
 
-  async put<T = unknown>(path: string, body?: unknown): Promise<T> {
-    return this.request<T>("PUT", path, body);
+  async put<T = unknown>(path: string, body?: unknown, params?: Record<string, string>): Promise<T> {
+    return this.request<T>("PUT", path, body, params);
   }
 
-  async delete<T = unknown>(path: string): Promise<T> {
-    return this.request<T>("DELETE", path);
+  async delete<T = unknown>(path: string, params?: Record<string, string>): Promise<T> {
+    return this.request<T>("DELETE", path, undefined, params);
+  }
+
+  async patch<T = unknown>(path: string, body: unknown): Promise<T> {
+    return this.request<T>("PATCH", path, body);
+  }
+
+  /**
+   * Fetch raw Response (for file downloads, thumbnails, etc.).
+   * Does NOT parse JSON — caller handles the response body.
+   */
+  async getRaw(path: string, params?: Record<string, string>, extraHeaders?: Record<string, string>): Promise<Response> {
+    return this.requestRaw("GET", path, undefined, params, extraHeaders);
+  }
+
+  /**
+   * GET /shared_items with the BoxAPI header for shared link resolution.
+   */
+  async getSharedItem<T = unknown>(sharedLinkUrl: string, password?: string): Promise<T> {
+    let boxApiHeader = `shared_link=${sharedLinkUrl}`;
+    if (password) boxApiHeader += `&shared_link_password=${password}`;
+    return this.request<T>("GET", "/shared_items", undefined, undefined, { BoxAPI: boxApiHeader });
   }
 
   /**
@@ -63,7 +102,7 @@ export class BoxClient {
     });
 
     if (response.status === 401) {
-      this.accessToken = await this.onTokenRefresh();
+      await this.refreshToken();
       const retryResponse = await fetch(url, {
         method: "POST",
         headers: { Authorization: `Bearer ${this.accessToken}` },
@@ -81,20 +120,26 @@ export class BoxClient {
     return response.json();
   }
 
-  private async request<T>(
+  private buildUrl(path: string, params?: Record<string, string>): string {
+    let url = `${BOX_API_BASE}${path}`;
+    if (params && Object.keys(params).length > 0) {
+      const searchParams = new URLSearchParams(params);
+      url += `?${searchParams.toString()}`;
+    }
+    return url;
+  }
+
+  private async requestRaw(
     method: string,
     path: string,
     body?: unknown,
     params?: Record<string, string>,
-  ): Promise<T> {
-    let url = `${BOX_API_BASE}${path}`;
-    if (params) {
-      const searchParams = new URLSearchParams(params);
-      url += `?${searchParams.toString()}`;
-    }
-
+    extraHeaders?: Record<string, string>,
+  ): Promise<Response> {
+    const url = this.buildUrl(path, params);
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.accessToken}`,
+      ...extraHeaders,
     };
     if (body !== undefined) {
       headers["Content-Type"] = "application/json";
@@ -107,7 +152,7 @@ export class BoxClient {
     });
 
     if (response.status === 401) {
-      this.accessToken = await this.onTokenRefresh();
+      await this.refreshToken();
       headers.Authorization = `Bearer ${this.accessToken}`;
       response = await fetch(url, {
         method,
@@ -115,6 +160,18 @@ export class BoxClient {
         body: body !== undefined ? JSON.stringify(body) : undefined,
       });
     }
+
+    return response;
+  }
+
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    params?: Record<string, string>,
+    extraHeaders?: Record<string, string>,
+  ): Promise<T> {
+    const response = await this.requestRaw(method, path, body, params, extraHeaders);
 
     if (!response.ok) {
       const errorText = await response.text();

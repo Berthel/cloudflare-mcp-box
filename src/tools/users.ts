@@ -8,8 +8,13 @@ export function registerUserTools(server: McpServer, client: BoxClient) {
     "List all users in the Box enterprise. Returns user IDs, names, emails, and status.",
     {},
     async () => {
-      // TODO: GET /users
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+      try {
+        const result = await client.get("/users");
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error listing users: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -19,9 +24,14 @@ export function registerUserTools(server: McpServer, client: BoxClient) {
     {
       name: z.string().min(1).describe("The user name to search for"),
     },
-    async () => {
-      // TODO: GET /users?filter_term=...
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get("/users", { filter_term: args.name });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error locating user by name: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -31,9 +41,14 @@ export function registerUserTools(server: McpServer, client: BoxClient) {
     {
       email: z.string().email().describe("The email address to look up"),
     },
-    async () => {
-      // TODO: GET /users?filter_term=...
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get("/users", { filter_term: args.email });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error locating user by email: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -43,9 +58,14 @@ export function registerUserTools(server: McpServer, client: BoxClient) {
     {
       query: z.string().min(1).describe("Search query matching name or email"),
     },
-    async () => {
-      // TODO: GET /users?filter_term=...
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get("/users", { filter_term: args.query });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error searching users: ${msg}` }], isError: true };
+      }
     },
   );
 }

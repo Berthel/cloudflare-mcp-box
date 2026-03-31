@@ -11,9 +11,20 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
       prompt: z.string().describe("The question or prompt to ask about the file"),
       ai_agent_id: z.string().optional().describe("Optional Box AI agent ID to use for the request"),
     },
-    async () => {
-      // TODO: POST /ai/ask (mode: single_item_qa)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          mode: "single_item_qa",
+          prompt: args.prompt,
+          items: [{ id: args.file_id, type: "file" }],
+        };
+        if (args.ai_agent_id) body.ai_agent = { id: args.ai_agent_id, type: "ai_agent_id" };
+        const result = await client.post("/ai/ask", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error asking Box AI: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -25,9 +36,20 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
       prompt: z.string().describe("The question or prompt to ask across the files"),
       ai_agent_id: z.string().optional().describe("Optional Box AI agent ID to use for the request"),
     },
-    async () => {
-      // TODO: POST /ai/ask (mode: multiple_item_qa)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          mode: "multiple_item_qa",
+          prompt: args.prompt,
+          items: args.file_ids.map((id) => ({ id, type: "file" })),
+        };
+        if (args.ai_agent_id) body.ai_agent = { id: args.ai_agent_id, type: "ai_agent_id" };
+        const result = await client.post("/ai/ask", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error asking Box AI: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -39,9 +61,20 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
       prompt: z.string().describe("The question or prompt to ask against the Hub"),
       ai_agent_id: z.string().optional().describe("Optional Box AI agent ID to use"),
     },
-    async () => {
-      // TODO: POST /ai/ask (hub mode)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          mode: "single_item_qa",
+          prompt: args.prompt,
+          items: [{ id: args.hub_id, type: "hub" }],
+        };
+        if (args.ai_agent_id) body.ai_agent = { id: args.ai_agent_id, type: "ai_agent_id" };
+        const result = await client.post("/ai/ask", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error asking Box AI Hub: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -53,9 +86,19 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
       prompt: z.string().describe("Freeform prompt describing what information to extract"),
       ai_agent_id: z.string().optional().describe("Optional Box AI agent ID to use"),
     },
-    async () => {
-      // TODO: POST /ai/extract
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          prompt: args.prompt,
+          items: args.file_ids.map((id) => ({ id, type: "file" })),
+        };
+        if (args.ai_agent_id) body.ai_agent = { id: args.ai_agent_id, type: "ai_agent_id" };
+        const result = await client.post("/ai/extract", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error extracting with Box AI: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -71,9 +114,19 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
       })).describe("Field definitions for structured extraction"),
       ai_agent_id: z.string().optional().describe("Optional Box AI agent ID to use"),
     },
-    async () => {
-      // TODO: POST /ai/extract_structured
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          items: args.file_ids.map((id) => ({ id, type: "file" })),
+          fields: args.fields,
+        };
+        if (args.ai_agent_id) body.ai_agent = { id: args.ai_agent_id, type: "ai_agent_id" };
+        const result = await client.post("/ai/extract_structured", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error extracting structured data: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -85,9 +138,19 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
       template_key: z.string().describe("The metadata template key to use as extraction schema"),
       ai_agent_id: z.string().optional().describe("Optional Box AI agent ID to use"),
     },
-    async () => {
-      // TODO: POST /ai/extract_structured
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          items: args.file_ids.map((id) => ({ id, type: "file" })),
+          metadata_template: { template_key: args.template_key, scope: "enterprise" },
+        };
+        if (args.ai_agent_id) body.ai_agent = { id: args.ai_agent_id, type: "ai_agent_id" };
+        const result = await client.post("/ai/extract_structured", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error extracting structured data: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -102,9 +165,19 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
         description: z.string().optional().describe("Description of what this field represents"),
       })).describe("Field definitions for enhanced extraction"),
     },
-    async () => {
-      // TODO: POST /ai/extract_structured (enhanced)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          items: args.file_ids.map((id) => ({ id, type: "file" })),
+          fields: args.fields,
+          ai_agent: { type: "ai_agent_extract_structured", long_text: { model: "azure__openai__gpt_4o_mini" } },
+        };
+        const result = await client.post("/ai/extract_structured", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error in enhanced extraction: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -115,9 +188,19 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
       file_ids: z.array(z.string()).min(1).describe("List of file IDs to extract data from"),
       template_key: z.string().describe("The metadata template key to use as extraction schema"),
     },
-    async () => {
-      // TODO: POST /ai/extract_structured (enhanced, template)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          items: args.file_ids.map((id) => ({ id, type: "file" })),
+          metadata_template: { template_key: args.template_key, scope: "enterprise" },
+          ai_agent: { type: "ai_agent_extract_structured", long_text: { model: "azure__openai__gpt_4o_mini" } },
+        };
+        const result = await client.post("/ai/extract_structured", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error in enhanced extraction: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -127,9 +210,14 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
     {
       ai_agent_id: z.string().describe("The ID of the Box AI agent to look up"),
     },
-    async () => {
-      // TODO: GET /ai_agents/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get(`/ai_agents/${args.ai_agent_id}`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error getting AI agent info: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -139,9 +227,14 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
     {
       limit: z.number().int().min(1).max(1000).default(100).describe("Maximum number of agents to return"),
     },
-    async () => {
-      // TODO: GET /ai_agents
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get("/ai_agents", { limit: String(args.limit) });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error listing AI agents: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -152,9 +245,17 @@ export function registerAiTools(server: McpServer, client: BoxClient) {
       name: z.string().min(1).describe("The agent name to search for"),
       limit: z.number().int().min(1).max(1000).default(100).describe("Maximum number of results"),
     },
-    async () => {
-      // TODO: GET /ai_agents + filter by name
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get<{ entries?: Array<{ name?: string; [k: string]: unknown }> }>("/ai_agents", { limit: String(args.limit) });
+        const filtered = (result.entries ?? []).filter((a) =>
+          a.name?.toLowerCase().includes(args.name.toLowerCase()),
+        );
+        return { content: [{ type: "text" as const, text: JSON.stringify({ total_count: filtered.length, entries: filtered }, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error searching AI agents: ${msg}` }], isError: true };
+      }
     },
   );
 }

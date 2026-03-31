@@ -13,9 +13,23 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
       requires_all_assignees_to_complete: z.boolean().optional()
         .describe("Whether ALL assignees must complete the task (vs. just one)"),
     },
-    async () => {
-      // TODO: POST /tasks (action: complete)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          item: { id: args.file_id, type: "file" },
+          action: "complete",
+        };
+        if (args.due_at) body.due_at = args.due_at;
+        if (args.message) body.message = args.message;
+        if (args.requires_all_assignees_to_complete !== undefined) {
+          body.completion_rule = args.requires_all_assignees_to_complete ? "all_assignees" : "any_assignee";
+        }
+        const result = await client.post("/tasks", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error creating completion task: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -29,9 +43,23 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
       requires_all_assignees_to_complete: z.boolean().optional()
         .describe("Whether ALL assignees must review (vs. just one)"),
     },
-    async () => {
-      // TODO: POST /tasks (action: review)
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          item: { id: args.file_id, type: "file" },
+          action: "review",
+        };
+        if (args.due_at) body.due_at = args.due_at;
+        if (args.message) body.message = args.message;
+        if (args.requires_all_assignees_to_complete !== undefined) {
+          body.completion_rule = args.requires_all_assignees_to_complete ? "all_assignees" : "any_assignee";
+        }
+        const result = await client.post("/tasks", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error creating review task: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -41,9 +69,14 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
     {
       task_id: z.string().describe("The ID of the task"),
     },
-    async () => {
-      // TODO: GET /tasks/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get(`/tasks/${args.task_id}`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error getting task details: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -57,9 +90,20 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
       requires_all_assignees_to_complete: z.boolean().optional()
         .describe("Update whether ALL assignees must complete"),
     },
-    async () => {
-      // TODO: PUT /tasks/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {};
+        if (args.due_at) body.due_at = args.due_at;
+        if (args.message) body.message = args.message;
+        if (args.requires_all_assignees_to_complete !== undefined) {
+          body.completion_rule = args.requires_all_assignees_to_complete ? "all_assignees" : "any_assignee";
+        }
+        const result = await client.put(`/tasks/${args.task_id}`, body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error updating task: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -69,9 +113,14 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
     {
       task_id: z.string().describe("The ID of the task to delete"),
     },
-    async () => {
-      // TODO: DELETE /tasks/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        await client.delete(`/tasks/${args.task_id}`);
+        return { content: [{ type: "text" as const, text: `Task ${args.task_id} deleted successfully.` }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error deleting task: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -81,9 +130,14 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
     {
       file_id: z.string().describe("The ID of the file"),
     },
-    async () => {
-      // TODO: GET /files/:id/tasks
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get(`/files/${args.file_id}/tasks`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error listing file tasks: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -94,9 +148,17 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
       task_id: z.string().describe("The ID of the task"),
       email: z.string().email().describe("The email address of the user to assign"),
     },
-    async () => {
-      // TODO: POST /task_assignments
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.post("/task_assignments", {
+          task: { id: args.task_id, type: "task" },
+          assign_to: { login: args.email },
+        });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error assigning task: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -107,9 +169,17 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
       task_id: z.string().describe("The ID of the task"),
       user_id: z.string().describe("The Box user ID to assign the task to"),
     },
-    async () => {
-      // TODO: POST /task_assignments
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.post("/task_assignments", {
+          task: { id: args.task_id, type: "task" },
+          assign_to: { id: args.user_id },
+        });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error assigning task: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -119,9 +189,14 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
     {
       task_id: z.string().describe("The ID of the task"),
     },
-    async () => {
-      // TODO: GET /tasks/:id/assignments
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get(`/tasks/${args.task_id}/assignments`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error listing task assignments: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -131,9 +206,14 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
     {
       assignment_id: z.string().describe("The ID of the task assignment"),
     },
-    async () => {
-      // TODO: GET /task_assignments/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get(`/task_assignments/${args.assignment_id}`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error getting task assignment details: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -145,9 +225,18 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
       is_positive_outcome: z.boolean().describe("True = approved/completed, False = rejected/incomplete"),
       message: z.string().optional().describe("Resolution message or comment"),
     },
-    async () => {
-      // TODO: PUT /task_assignments/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          resolution_state: args.is_positive_outcome ? "completed" : "rejected",
+        };
+        if (args.message) body.message = args.message;
+        const result = await client.put(`/task_assignments/${args.assignment_id}`, body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error updating task assignment: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -157,9 +246,14 @@ export function registerTaskTools(server: McpServer, client: BoxClient) {
     {
       assignment_id: z.string().describe("The ID of the task assignment to remove"),
     },
-    async () => {
-      // TODO: DELETE /task_assignments/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        await client.delete(`/task_assignments/${args.assignment_id}`);
+        return { content: [{ type: "text" as const, text: `Task assignment ${args.assignment_id} removed successfully.` }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error removing task assignment: ${msg}` }], isError: true };
+      }
     },
   );
 }

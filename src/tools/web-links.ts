@@ -12,9 +12,20 @@ export function registerWebLinkTools(server: McpServer, client: BoxClient) {
       name: z.string().optional().describe("Display name for the web link (defaults to URL)"),
       description: z.string().optional().describe("Description of the web link"),
     },
-    async () => {
-      // TODO: POST /web_links
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          url: args.url,
+          parent: { id: args.parent_folder_id },
+        };
+        if (args.name) body.name = args.name;
+        if (args.description) body.description = args.description;
+        const result = await client.post("/web_links", body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error creating web link: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -24,9 +35,14 @@ export function registerWebLinkTools(server: McpServer, client: BoxClient) {
     {
       web_link_id: z.string().describe("The ID of the web link"),
     },
-    async () => {
-      // TODO: GET /web_links/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get(`/web_links/${args.web_link_id}`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error getting web link: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -40,9 +56,20 @@ export function registerWebLinkTools(server: McpServer, client: BoxClient) {
       name: z.string().optional().describe("New display name"),
       description: z.string().optional().describe("New description"),
     },
-    async () => {
-      // TODO: PUT /web_links/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const body: Record<string, unknown> = {
+          url: args.url,
+          parent: { id: args.parent_folder_id },
+        };
+        if (args.name) body.name = args.name;
+        if (args.description) body.description = args.description;
+        const result = await client.put(`/web_links/${args.web_link_id}`, body);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error updating web link: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -52,9 +79,14 @@ export function registerWebLinkTools(server: McpServer, client: BoxClient) {
     {
       web_link_id: z.string().describe("The ID of the web link to delete"),
     },
-    async () => {
-      // TODO: DELETE /web_links/:id
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        await client.delete(`/web_links/${args.web_link_id}`);
+        return { content: [{ type: "text" as const, text: `Web link ${args.web_link_id} deleted successfully.` }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error deleting web link: ${msg}` }], isError: true };
+      }
     },
   );
 }

@@ -9,9 +9,14 @@ export function registerGroupTools(server: McpServer, client: BoxClient) {
     {
       query: z.string().min(1).describe("The group name to search for"),
     },
-    async () => {
-      // TODO: GET /groups?filter_term=...
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get("/groups", { filter_term: args.query });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error searching groups: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -21,9 +26,14 @@ export function registerGroupTools(server: McpServer, client: BoxClient) {
     {
       group_id: z.string().describe("The ID of the group"),
     },
-    async () => {
-      // TODO: GET /groups/:id/memberships
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get(`/groups/${args.group_id}/memberships`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error listing group members: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -33,9 +43,14 @@ export function registerGroupTools(server: McpServer, client: BoxClient) {
     {
       user_id: z.string().describe("The ID of the user"),
     },
-    async () => {
-      // TODO: GET /users/:id/memberships
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get(`/users/${args.user_id}/memberships`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error listing user's groups: ${msg}` }], isError: true };
+      }
     },
   );
 }

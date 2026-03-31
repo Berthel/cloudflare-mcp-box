@@ -15,9 +15,18 @@ export function registerSearchTools(server: McpServer, client: BoxClient) {
       ancestor_folder_ids: z.array(z.string()).optional()
         .describe("Limit search to specific folder IDs and their subfolders"),
     },
-    async () => {
-      // TODO: GET /search
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const params: Record<string, string> = { query: args.query };
+        if (args.file_extensions?.length) params.file_extensions = args.file_extensions.join(",");
+        if (args.where_to_look_for_query) params.content_types = args.where_to_look_for_query;
+        if (args.ancestor_folder_ids?.length) params.ancestor_folder_ids = args.ancestor_folder_ids.join(",");
+        const result = await client.get("/search", params);
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error searching Box: ${msg}` }], isError: true };
+      }
     },
   );
 
@@ -27,9 +36,17 @@ export function registerSearchTools(server: McpServer, client: BoxClient) {
     {
       folder_name: z.string().min(1).describe("The exact folder name to search for"),
     },
-    async () => {
-      // TODO: GET /search?type=folder&query=...
-      return { content: [{ type: "text" as const, text: "Not implemented yet" }] };
+    async (args) => {
+      try {
+        const result = await client.get("/search", {
+          query: args.folder_name,
+          type: "folder",
+        });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return { content: [{ type: "text" as const, text: `Error searching for folder: ${msg}` }], isError: true };
+      }
     },
   );
 }
