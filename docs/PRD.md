@@ -9,15 +9,17 @@
 
 **Problem Statement:** Utilcos interne team mangler en direkte integration mellem Claude Cowork desktop-appen og Box. Brugerne skal manuelt kopiere indhold frem og tilbage, hvilket er langsomt, fejlbehæftet og bryder konteksten i AI-arbejdsgange.
 
-**Proposed Solution:** En remote MCP-server (`cloudflare-box-mcp`) hostet på Cloudflare Workers, der via OAuth 2.0 forbinder Claude Cowork til Box. Serveren eksponerer 115 MCP-tools fordelt på 14 domæneområder (filer, mapper, søgning, AI, docgen, metadata, brugere, grupper, samarbejde, delte links, web links, opgaver). Arkitekturen bruger stateful Durable Objects (EU-jurisdiktion) og en letvægtsklient (`BoxClient`) med automatisk token-refresh.
+**Proposed Solution:** En remote MCP-server (`cloudflare-box-mcp`) hostet på Cloudflare Workers, der via OAuth 2.0 forbinder Claude Cowork til Box. Serveren eksponerer 116 MCP-tools fordelt på 14 domæneområder (filer, mapper, søgning, AI, docgen, metadata, brugere, grupper, samarbejde, delte links, web links, opgaver). Arkitekturen bruger stateful Durable Objects (EU-jurisdiktion) og en letvægtsklient (`BoxClient`) med automatisk token-refresh.
+
+**Current Status:** Scaffold-fase — OAuth-flow, `BoxClient` og alle 116 tool-signaturer er på plads. 115 af 116 tools returnerer `"Not implemented yet"` (kun `box_server_info` returnerer reel data). Ingen tools kalder Box API endnu.
 
 **Success Criteria:**
 
-- [ ] Alle 115 tools implementeret og kaldbare fra Claude Cowork (0 stubs)
-- [ ] OAuth 2.0 authorization code flow fungerer end-to-end (authorize → callback → token refresh)
-- [ ] Gennemsnitlig tool-responstid under 2 sekunder for simple CRUD-operationer
-- [ ] Email-domænerestriktion fungerer korrekt (kun `@utilco.dk` / godkendte adresser)
-- [ ] Deployeret på Cloudflare Workers med EU-jurisdiktion og GDPR-kompatibel datahåndtering
+- [ ] Alle 116 tools implementeret og kaldbare fra Claude Cowork (0 stubs — ingen `"Not implemented yet"` responses)
+- [ ] OAuth 2.0 authorization code flow fungerer end-to-end (authorize → callback → token refresh → automatisk retry ved 401)
+- [ ] P95 responstid < 2s for single-resource GET-operationer (`box_file_info`, `box_folder_info`, `box_who_am_i`) målt efter warm start
+- [ ] Email-domænerestriktion fungerer korrekt (kun `@utilco.dk` / godkendte adresser: flemming.berthelsen@gmail.com)
+- [ ] Deployeret på Cloudflare Workers med EU-jurisdiktion (`{ jurisdiction: "eu" }`) og GDPR-kompatibel datahåndtering
 
 ---
 
@@ -55,7 +57,7 @@
 
 ### Non-Goals
 
-- Ingen reel filhåndtering af binære filer (billeder, video) i MCP-laget — kun metadata og tekstekstraktion
+- Ingen binær filhåndtering (billeder, video, PDF-bytes) i MCP-laget — `box_file_upload` håndterer tekstindhold; binære filer uploades via Box UI. `box_file_download` returnerer kun tekstekstraktion (op til `CHARACTER_LIMIT` tegn); binære filer returnerer metadata med link
 - Ingen webhook/event-lytning fra Box (kun request/response)
 - Ingen caching-lag — alle kald går direkte til Box API
 - Ingen multi-tenant arkitektur — serveren er til Utilcos eget Box-miljø
@@ -67,15 +69,15 @@
 
 ### Tool Requirements
 
-**14 tool-grupper, 115 tools totalt:**
+**14 tool-grupper, 116 tools totalt:**
 
 | Gruppe | Antal | Tools |
 |--------|-------|-------|
 | meta | 2 | `box_who_am_i`, `box_server_info` |
 | search | 2 | `box_search`, `box_search_folder_by_name` |
 | ai | 11 | Box AI Ask (single/multi/hub), Extract (freeform/structured/enhanced), Agent info/list/search |
-| docgen | 12 | Template CRUD, tags, jobs, batch-generering |
-| files | 17 | CRUD, copy, thumbnail, tags, lock, versioner, permissions |
+| docgen | 11 | Template CRUD, tags, jobs, batch-generering |
+| files | 18 | CRUD, copy, thumbnail, tags, lock, versioner, permissions |
 | file-transfer | 3 | Download, upload, text extract |
 | folders | 16 | CRUD, items, copy, tags, collections, sync state, upload email |
 | metadata | 8 | Template CRUD, instanser på filer (CRUD) |
@@ -88,9 +90,10 @@
 
 ### Evaluation Strategy
 
-- **Smoke test:** Hvert tool kaldes mindst én gang med gyldige parametre og returnerer forventet Box API-data (ikke "Not implemented yet")
-- **Fejlhåndtering:** Hvert tool testes med ugyldige input og returnerer en actionable fejlbesked (ikke stack trace)
-- **Token refresh:** Simulér udløbet token og verificér automatisk refresh + retry
+- **Smoke test:** Hvert tool kaldes mindst én gang med gyldige parametre og returnerer forventet Box API-data (ikke `"Not implemented yet"`). Testes via script (`scripts/smoke-test.ts`) der itererer alle registrerede tools mod live Box-miljø.
+- **Fejlhåndtering:** Hvert tool testes med ugyldige input (manglende ID, ugyldig type, tomt felt) og skal returnere en fejlbesked der inkluderer: (1) hvad der gik galt, (2) hvilken parameter der fejlede, og (3) forslag til korrektion. Eksempel: `"File not found (file_id: 12345). Verify the file ID exists and that you have access."` — ikke stack traces eller generiske 500-fejl.
+- **Token refresh:** Simulér udløbet token og verificér at `BoxClient` automatisk refresher og retrier. Verificér at to samtidige kald under refresh ikke trigger dobbelt-refresh (Promise-lås).
+- **AI-tools:** `box_ai_ask_*` og `box_ai_extract_*` testes med et fast sæt testdokumenter. Responstid op til 10s accepteres (Box AI er langsommere end CRUD). Verificér at svar indeholder kildeangivelse.
 
 ---
 
@@ -120,6 +123,17 @@ sequenceDiagram
     Box-->>DO: New access_token + refresh_token
     DO->>Box: Retry original API call
     Box-->>DO: JSON response
+
+    Note over CC,Box: Email-restriktions-flow (OAuth callback)
+    CC->>CFW: GET /authorize
+    CFW->>Box: Redirect til Box OAuth consent
+    Box-->>CFW: GET /callback (auth code + bruger-email)
+    CFW->>CFW: Tjek email mod ALLOWED_EMAIL_DOMAIN / ALLOWED_EMAILS
+    alt Email godkendt
+        CFW-->>CC: Token udstedt, MCP-session startet
+    else Email afvist
+        CFW-->>CC: 403 Forbidden (uautoriseret domæne)
+    end
 ```
 
 ### Nøglekomponenter
@@ -131,12 +145,13 @@ sequenceDiagram
 | `src/workers-oauth-utils.ts` | CSRF, KV state, consent dialog (generisk) |
 | `src/lib/box-client.ts` | `BoxClient` med auto 401-retry og token refresh |
 | `src/lib/types.ts` | `BOX_API_BASE`, `BOX_UPLOAD_BASE`, `CHARACTER_LIMIT`, delte typer |
+| `wrangler.jsonc` | Worker-konfiguration: bindings (KV, DO), placement (`smart`), compatibility flags |
 
 ### Integration Points
 
 | System | Type | Formål |
 |--------|------|--------|
-| Box REST API v2 | REST (`https://api.box.com/2.0`) | Alle 115 tools kalder dette |
+| Box REST API v2 | REST (`https://api.box.com/2.0`) | Alle 116 tools kalder dette |
 | Box Upload API | REST (`https://upload.box.com/api/2.0`) | Fil-upload via multipart |
 | Box OAuth 2.0 | Auth | Authorization code flow med `account.box.com` og `api.box.com` |
 | Cloudflare KV | Storage (`OAUTH_KV`) | OAuth state management med TTL |
@@ -159,7 +174,7 @@ sequenceDiagram
 
 | Fase | Omfang | Tidsramme |
 |------|--------|-----------|
-| Fase 1 — Implementering | Implementér alle 115 tool-handlere med reelle Box API-kald via `BoxClient`. Prioritér: meta → search → files → file-transfer → folders → ai → docgen → metadata → users → groups → collaborations → shared-links → web-links → tasks. | Uge 1 |
+| Fase 1 — Implementering | Implementér alle 116 tool-handlere med reelle Box API-kald via `BoxClient`. Prioritér: meta → search → files → file-transfer → folders → ai → docgen → metadata → users → groups → collaborations → shared-links → web-links → tasks. | Uge 1 |
 | Fase 2 — Test og hardening | Smoke-test alle tools mod live Box-miljø. Fix fejlhåndtering, pagination og edge cases. Validér OAuth-flow end-to-end inkl. token refresh. | Uge 2 |
 | Fase 3 — Produktion | Deploy til Cloudflare Workers med secrets. Verificér EU-jurisdiktion. Distribuer MCP endpoint-URL til teamet. | Uge 2 (slut) |
 
