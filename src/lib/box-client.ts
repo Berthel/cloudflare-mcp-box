@@ -46,18 +46,20 @@ export class BoxClient {
       parent: { id: parentFolderId },
     });
 
-    const formData = new FormData();
-    formData.append("attributes", attributes);
-
-    const blob = typeof content === "string"
-      ? new Blob([content], { type: "text/plain" })
-      : new Blob([content]);
-    formData.append("file", blob, fileName);
+    const buildFormData = () => {
+      const fd = new FormData();
+      fd.append("attributes", attributes);
+      const blob = typeof content === "string"
+        ? new Blob([content], { type: "text/plain" })
+        : new Blob([content]);
+      fd.append("file", blob, fileName);
+      return fd;
+    };
 
     const response = await fetch(url, {
       method: "POST",
       headers: { Authorization: `Bearer ${this.accessToken}` },
-      body: formData,
+      body: buildFormData(),
     });
 
     if (response.status === 401) {
@@ -65,7 +67,7 @@ export class BoxClient {
       const retryResponse = await fetch(url, {
         method: "POST",
         headers: { Authorization: `Bearer ${this.accessToken}` },
-        body: formData,
+        body: buildFormData(),
       });
       if (!retryResponse.ok) {
         throw new Error(`Box upload failed after token refresh: ${retryResponse.status} ${await retryResponse.text()}`);
