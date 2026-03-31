@@ -1,7 +1,7 @@
 # cloudflare-box-mcp — PRD
 
 > Product Requirements Document for Box MCP-serveren på Cloudflare Workers.
-> Sidst opdateret: 2026-03-31
+> Sidst opdateret: 2026-03-31 (status opdateret)
 
 ---
 
@@ -11,15 +11,15 @@
 
 **Proposed Solution:** En remote MCP-server (`cloudflare-box-mcp`) hostet på Cloudflare Workers, der via OAuth 2.0 forbinder Claude Cowork til Box. Serveren eksponerer 116 MCP-tools fordelt på 14 domæneområder (filer, mapper, søgning, AI, docgen, metadata, brugere, grupper, samarbejde, delte links, web links, opgaver). Arkitekturen bruger stateful Durable Objects (EU-jurisdiktion) og en letvægtsklient (`BoxClient`) med automatisk token-refresh.
 
-**Current Status:** Scaffold-fase — OAuth-flow, `BoxClient` og alle 116 tool-signaturer er på plads. 115 af 116 tools returnerer `"Not implemented yet"` (kun `box_server_info` returnerer reel data). Ingen tools kalder Box API endnu.
+**Current Status:** Fase 1 færdig — alle 116 tools er implementeret med reelle Box API-kald via `BoxClient`. OAuth-flow, token refresh, email-restriktion og EU-jurisdiktion er på plads. Fejlhåndtering med actionable messages via `toolError()` i `src/lib/errors.ts`.
 
 **Success Criteria:**
 
-- [ ] Alle 116 tools implementeret og kaldbare fra Claude Cowork (0 stubs — ingen `"Not implemented yet"` responses)
-- [ ] OAuth 2.0 authorization code flow fungerer end-to-end (authorize → callback → token refresh → automatisk retry ved 401)
-- [ ] P95 responstid < 2s for single-resource GET-operationer (`box_file_info`, `box_folder_info`, `box_who_am_i`) målt efter warm start
-- [ ] Email-domænerestriktion fungerer korrekt (kun `@utilco.dk` / godkendte adresser: flemming.berthelsen@gmail.com)
-- [ ] Deployeret på Cloudflare Workers med EU-jurisdiktion (`{ jurisdiction: "eu" }`) og GDPR-kompatibel datahåndtering
+- [x] Alle 116 tools implementeret og kaldbare fra Claude Cowork (0 stubs — ingen `"Not implemented yet"` responses)
+- [x] OAuth 2.0 authorization code flow fungerer end-to-end (authorize → callback → token refresh → automatisk retry ved 401)
+- [ ] P95 responstid < 2s for single-resource GET-operationer (`box_file_info`, `box_folder_info`, `box_who_am_i`) målt efter warm start — *kræver live validering*
+- [x] Email-domænerestriktion fungerer korrekt (kun `@utilco.dk` / godkendte adresser: flemming.berthelsen@gmail.com)
+- [x] Deployeret på Cloudflare Workers med EU-jurisdiktion (`{ jurisdiction: "eu" }`) og GDPR-kompatibel datahåndtering
 
 ---
 
@@ -90,7 +90,7 @@
 
 ### Evaluation Strategy
 
-- **Smoke test:** Hvert tool kaldes mindst én gang med gyldige parametre og returnerer forventet Box API-data (ikke `"Not implemented yet"`). Testes via script (`scripts/smoke-test.ts`) der itererer alle registrerede tools mod live Box-miljø.
+- **Smoke test:** Hvert tool kaldes mindst én gang med gyldige parametre og returnerer forventet Box API-data (ikke `"Not implemented yet"`). Testes via prompt (`scripts/smoke-test-prompt.md`) der guider systematisk test af alle registrerede tools mod live Box-miljø.
 - **Fejlhåndtering:** Hvert tool testes med ugyldige input (manglende ID, ugyldig type, tomt felt) og skal returnere en fejlbesked der inkluderer: (1) hvad der gik galt, (2) hvilken parameter der fejlede, og (3) forslag til korrektion. Eksempel: `"File not found (file_id: 12345). Verify the file ID exists and that you have access."` — ikke stack traces eller generiske 500-fejl.
 - **Token refresh:** Simulér udløbet token og verificér at `BoxClient` automatisk refresher og retrier. Verificér at to samtidige kald under refresh ikke trigger dobbelt-refresh (Promise-lås).
 - **AI-tools:** `box_ai_ask_*` og `box_ai_extract_*` testes med et fast sæt testdokumenter. Responstid op til 10s accepteres (Box AI er langsommere end CRUD). Verificér at svar indeholder kildeangivelse.
@@ -145,7 +145,8 @@ sequenceDiagram
 | `src/workers-oauth-utils.ts` | CSRF, KV state, consent dialog (generisk) |
 | `src/lib/box-client.ts` | `BoxClient` med auto 401-retry og token refresh |
 | `src/lib/types.ts` | `BOX_API_BASE`, `BOX_UPLOAD_BASE`, `CHARACTER_LIMIT`, delte typer |
-| `wrangler.jsonc` | Worker-konfiguration: bindings (KV, DO), placement (`smart`), compatibility flags |
+| `src/lib/errors.ts` | `toolError()` helper med actionable fejlbeskeder og `SUGGESTION_MAP` |
+| `wrangler.jsonc` | Worker-konfiguration: bindings (KV, DO), placement (`eu-central-1`), compatibility flags |
 
 ### Integration Points
 
@@ -174,9 +175,9 @@ sequenceDiagram
 
 | Fase | Omfang | Tidsramme |
 |------|--------|-----------|
-| Fase 1 — Implementering | Implementér alle 116 tool-handlere med reelle Box API-kald via `BoxClient`. Prioritér: meta → search → files → file-transfer → folders → ai → docgen → metadata → users → groups → collaborations → shared-links → web-links → tasks. | Uge 1 |
-| Fase 2 — Test og hardening | Smoke-test alle tools mod live Box-miljø. Fix fejlhåndtering, pagination og edge cases. Validér OAuth-flow end-to-end inkl. token refresh. | Uge 2 |
-| Fase 3 — Produktion | Deploy til Cloudflare Workers med secrets. Verificér EU-jurisdiktion. Distribuer MCP endpoint-URL til teamet. | Uge 2 (slut) |
+| Fase 1 — Implementering | ~~Implementér alle 116 tool-handlere med reelle Box API-kald via `BoxClient`.~~ | ✅ Færdig |
+| Fase 2 — Test og hardening | Smoke-test alle tools mod live Box-miljø. Fix fejlhåndtering, pagination og edge cases. Validér OAuth-flow end-to-end inkl. token refresh. Fejlhåndtering (`toolError()` + `SUGGESTION_MAP`) er implementeret; mangler systematisk live smoke-test. | I gang |
+| Fase 3 — Produktion | Deploy til Cloudflare Workers med secrets. Verificér EU-jurisdiktion. Distribuer MCP endpoint-URL til teamet. | Afventer Fase 2 |
 
 ### Technical Risks
 
