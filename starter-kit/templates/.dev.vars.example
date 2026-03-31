@@ -1,0 +1,16 @@
+# Secrets for local development (wrangler dev reads this automatically)
+# Copy to .dev.vars and fill in real values
+#
+# IMPORTANT: .dev.vars must be in .gitignore — never commit secrets
+
+# --- Auth-less mode: API key for external service ---
+# API_KEY=your-api-key-here
+
+# --- OAuth mode: upstream provider credentials ---
+# UPSTREAM_CLIENT_ID=your-client-id
+# UPSTREAM_CLIENT_SECRET=your-client-secret
+# COOKIE_ENCRYPTION_KEY=generate-with-openssl-rand-hex-32
+
+# --- Email restrictions (optional, for OAuth) ---
+# ALLOWED_EMAIL_DOMAIN=example.com
+# ALLOWED_EMAILS=user@gmail.com,another@external.com

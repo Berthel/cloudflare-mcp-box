@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "REPLACE-WITH-PROJECT-NAME",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-03-10",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "migrations": [
+    {
+      "new_sqlite_classes": ["MyMcpAgent"],
+      "tag": "v1"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "MyMcpAgent",
+        "name": "MCP_OBJECT"
+      }
+    ]
+  },
+
+  // Uncomment for EU data residency (GDPR)
+  // "placement": {
+  //   "region": "aws:eu-central-1"
+  // },
+
+  // Uncomment for R2 object storage
+  // "r2_buckets": [
+  //   {
+  //     "binding": "STORAGE_BUCKET",
+  //     "bucket_name": "REPLACE-bucket-name"
+  //   }
+  // ],
+
+  // Uncomment for KV (required for OAuth flows)
+  // "kv_namespaces": [
+  //   {
+  //     "binding": "OAUTH_KV",
+  //     "id": "REPLACE-WITH-KV-NAMESPACE-ID"
+  //   }
+  // ],
+
+  "observability": {
+    "enabled": true
+  }
+}
