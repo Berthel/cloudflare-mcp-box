@@ -43,6 +43,14 @@ export class BoxMcpAgent extends McpAgent<Env, unknown, BoxOAuthProps> {
     const storedTokens = await this.ctx.storage.get<StoredTokens>(TOKENS_STORAGE_KEY);
     const accessToken = storedTokens?.accessToken ?? this.props.accessToken;
 
+    if (!storedTokens && this.props.refreshToken) {
+      await this.ctx.storage.put(TOKENS_STORAGE_KEY, {
+        accessToken: this.props.accessToken,
+        refreshToken: this.props.refreshToken,
+        expiresAt: this.props.expiresAt,
+      } satisfies StoredTokens);
+    }
+
     const boxClient = new BoxClient({
       accessToken,
       onTokenRefresh: () => this.refreshAccessToken(),
