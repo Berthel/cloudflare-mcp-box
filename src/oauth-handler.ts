@@ -71,9 +71,11 @@ app.get("/authorize", async (c) => {
   if (await isClientApproved(c.req.raw, clientId, c.env.COOKIE_ENCRYPTION_KEY)) {
     const { stateToken } = await createOAuthState(oauthReqInfo, c.env.OAUTH_KV);
     const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
+    const redirectUri = new URL("/callback", c.req.url).href;
+    await storeRedirectUri(c.env.OAUTH_KV, stateToken, redirectUri);
     const responseHeaders = new Headers();
     responseHeaders.append("Set-Cookie", sessionBindingCookie);
-    return redirectToBox(c.req.raw, stateToken, c.env.BOX_CLIENT_ID, responseHeaders);
+    return redirectToBox(stateToken, c.env.BOX_CLIENT_ID, redirectUri, responseHeaders);
   }
 
   const { token: csrfToken, setCookie } = generateCSRFProtection();
@@ -120,12 +122,14 @@ app.post("/authorize", async (c) => {
 
     const { stateToken } = await createOAuthState(state.oauthReqInfo, c.env.OAUTH_KV);
     const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
+    const redirectUri = new URL("/callback", c.req.url).href;
+    await storeRedirectUri(c.env.OAUTH_KV, stateToken, redirectUri);
 
     const headers = new Headers();
     headers.append("Set-Cookie", approvedClientCookie);
     headers.append("Set-Cookie", sessionBindingCookie);
 
-    return redirectToBox(c.req.raw, stateToken, c.env.BOX_CLIENT_ID, headers);
+    return redirectToBox(stateToken, c.env.BOX_CLIENT_ID, redirectUri, headers);
   } catch (error: unknown) {
     if (error instanceof OAuthError) return error.toResponse();
     const message = error instanceof Error ? error.message : String(error);
@@ -159,7 +163,11 @@ app.get("/callback", async (c) => {
   const code = c.req.query("code");
   if (!code) return c.text("Missing authorization code", 400);
 
-  const callbackUri = new URL("/callback", c.req.url).href;
+  const stateParam = c.req.query("state");
+  const callbackUri = stateParam ? await popRedirectUri(c.env.OAUTH_KV, stateParam) : null;
+  if (!callbackUri) {
+    return c.text("Missing or expired redirect URI — restart the authorization flow", 400);
+  }
 
   const tokenResponse = await fetch(BOX_TOKEN_URL, {
     method: "POST",
@@ -271,15 +279,29 @@ function renderAccessDenied(email: string): Response {
   );
 }
 
+const REDIRECT_URI_KV_PREFIX = "oauth:redirect_uri:";
+const REDIRECT_URI_TTL = 1800;
+
+async function storeRedirectUri(kv: KVNamespace, stateToken: string, uri: string) {
+  await kv.put(`${REDIRECT_URI_KV_PREFIX}${stateToken}`, uri, { expirationTtl: REDIRECT_URI_TTL });
+}
+
+async function popRedirectUri(kv: KVNamespace, stateToken: string): Promise<string | null> {
+  const key = `${REDIRECT_URI_KV_PREFIX}${stateToken}`;
+  const uri = await kv.get(key);
+  if (uri) await kv.delete(key);
+  return uri;
+}
+
 function redirectToBox(
-  request: Request,
   stateToken: string,
   clientId: string,
+  redirectUri: string,
   extraHeaders?: Headers,
 ): Response {
   const authorizeUrl = new URL(BOX_AUTHORIZE_URL);
   authorizeUrl.searchParams.set("client_id", clientId);
-  authorizeUrl.searchParams.set("redirect_uri", new URL("/callback", request.url).href);
+  authorizeUrl.searchParams.set("redirect_uri", redirectUri);
   authorizeUrl.searchParams.set("response_type", "code");
   authorizeUrl.searchParams.set("state", stateToken);
 
