@@ -13,9 +13,9 @@ Jeg vil bygge en ny remote MCP-server på Cloudflare Workers.
 
 ## Projekt
 
-- **Navn**: INDSÆT NAVN
-- **Formål**: Bruges i Claude Cowork desktop app til at forbinde til INDSÆT TJENESTE
-- **Tools jeg har brug for**: Denne her skal omskrives så den kan køre i cloudflare: INDSÆT REPO
+- **Navn**: cloudflare-box-mcp
+- **Formål**: Bruges i Claude Cowork desktop app til at forbinde til Box
+- **Tools jeg har brug for**: Denne her skal omskrives så den kan køre i cloudflare: https://github.com/Utilco/mcp-server-box.git
 
 ## Tekniske valg
 

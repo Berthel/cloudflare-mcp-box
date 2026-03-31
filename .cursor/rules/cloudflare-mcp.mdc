@@ -1,0 +1,63 @@
+---
+description: Cloudflare Workers and McpAgent patterns
+globs: wrangler.jsonc, src/index.ts
+alwaysApply: false
+---
+
+# Cloudflare Workers MCP patterns
+
+## Exports
+
+- The McpAgent subclass must be a **named export** (Wrangler requires it for DO bindings).
+- The fetch handler must be the **default export**.
+- Both live in `src/index.ts`.
+
+## Wrangler
+
+- `compatibility_flags: ["nodejs_compat"]` is required — without it the `agents` package fails at runtime.
+- Each DO migration needs a unique `tag`. Add a new migration object when changing DO state schema.
+
+## McpAgent
+
+- `this.env` provides all Cloudflare bindings and secrets.
+- `this.ctx.storage` provides persistent state that survives DO eviction.
+- Instance variables survive between tool calls within the same session but are lost on eviction.
+- `McpAgent.serve("/mcp")` in the fetch handler routes to the DO.
+- For EU jurisdiction: `McpAgent.serve("/mcp", { jurisdiction: "eu" })`.
+
+## Secrets
+
+- Local dev: `.dev.vars` (auto-read by `wrangler dev`).
+- Production: `echo "value" | npx wrangler secret put SECRET_NAME`.
+- Keep both in sync — this is the most common error source.
+
+## Tool registration
+
+- Use `registerXxxTools(server, ...deps)` functions — one per tool group.
+- Every Zod parameter needs `.describe()` — the LLM uses descriptions to fill arguments.
+- Return meaningful error messages as `content: [{ type: "text", text: "..." }]` — the LLM can retry based on them.
+
+## Stateful vs stateless
+
+| Approach | Stateful? | Requires DO? | Best for |
+|---|---|---|---|
+| `createMcpHandler()` | No | No | Stateless tools, simple setup |
+| `McpAgent` | Yes | Yes | Session state, elicitation |
+
+## OAuth with upstream provider
+
+- Default export changes from `{ fetch() }` to `new OAuthProvider({...})`.
+- McpAgent gets a generic type parameter: `McpAgent<Env, unknown, UpstreamOAuthProps>`.
+- OAuth tokens arrive via `this.props.accessToken` in `init()`.
+- Store refreshed tokens in `this.ctx.storage` — they survive DO eviction.
+- KV namespace (`OAUTH_KV`) required for OAuth state management.
+- Hono app handles `/authorize` and `/callback` flow.
+- `workers-oauth-utils.ts` provides CSRF, state management, approval dialog — this file is generic and can be copied between projects.
+- Email restrictions via `ALLOWED_EMAIL_DOMAIN` (comma-separated domains) and `ALLOWED_EMAILS` (comma-separated specific addresses).
+- Required packages: `@cloudflare/workers-oauth-provider`, `hono`.
+
+## Testing
+
+- MCP Inspector: `npx @modelcontextprotocol/inspector@latest`
+- Connect to local: `http://localhost:8788/mcp`
+- Connect to deployed: `https://<worker>.workers.dev/mcp`
